@@ -1,0 +1,33 @@
+{
+  "name": "RPG Quest Journal",
+  "short_name": "RPG Quest",
+  "description": "Персональный RPG-менеджер задач и привычек: зарабатывайте XP и золото, прокачивайте героя и следите за активностью.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1e1e24",
+  "theme_color": "#1e1e24",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Новый квест",
+      "url": "/#new-task",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

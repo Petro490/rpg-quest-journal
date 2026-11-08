@@ -1,3 +1,34 @@
-.venv/
-*.db
+# ==== Python ====
 __pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+
+# ==== Виртуальные окружения ====
+.venv/
+venv/
+env/
+ENV/
+
+# ==== Базы данных и данные (не коммитим) ====
+*.db
+*.sqlite
+*.sqlite3
+
+# ==== Конфигурация и секреты ====
+.env
+.env.*
+!.env.example
+
+# ==== Логи ====
+*.log
+
+# ==== ОС ====
+.DS_Store
+Thumbs.db
+
+# ==== Редакторы / IDE ====
+.vscode/
+.idea/

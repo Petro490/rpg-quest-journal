@@ -1,244 +1,863 @@
- <!DOCTYPE html>
-<html lang="ru">
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RPG Task Manager — Панель Героя</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="theme-color" content="#1e1e24" media="(prefers-color-scheme: dark)">
+    <meta name="theme-color" content="#f2f3f7" media="(prefers-color-scheme: light)">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RPG Quest">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+    <link rel="icon" type="image/png" href="/static/icons/icon-192.png">
+    <title>⚔ RPG Quest Journal</title>
     <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background: #1a1a24; 
-            color: #f5f5fa; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            padding: 30px; 
-            margin: 0;
+        /* ====== ТЕМЫ (тёмная / светлая) ====== */
+        :root {
+            --border: #3a3a4a;
+            --panel: #2a2a35;
+            --panel2: #343444;
+            --bg: #1e1e24;
+            --text: #f5f5f7;
+            --muted: #aaa;
+            --input-bg: #1e1e24;
+            --accent: #ffb703;
+            --link: #00b4d8;
         }
-        h1 { margin-bottom: 25px; color: #f1c40f; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
-        .game-layout { display: flex; gap: 25px; width: 100%; max-width: 950px; }
-        .panel { background: #252533; padding: 25px; border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,0.4); border: 1px solid #3a3a4f; width: 100%; box-sizing: border-box; }
-        .hero-panel { flex: 1; text-align: center; height: fit-content; }
-        .tasks-panel { flex: 1.8; }
-        .shop-panel { width: 100%; max-width: 950px; margin-top: 25px; }
-        h3 { margin-top: 0; color: #f1c40f; border-bottom: 2px solid #3a3a4f; padding-bottom: 8px; font-size: 20px; }
-        .stat-row { display: flex; justify-content: space-between; margin: 12px 0; font-size: 17px; }
-        .gold-count { color: #f1c40f; font-weight: bold; }
-        .xp-container { background: #3a3a4f; width: 100%; height: 18px; border-radius: 9px; margin-top: 15px; overflow: hidden; border: 1px solid #555; }
-        .xp-bar { background: #3498db; width: 0%; height: 100%; transition: width 0.5s ease-in-out; }
-        .xp-text { font-size: 13px; margin-top: 6px; color: #bbb; }
-        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
-        input, select, button { padding: 12px; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; }
-        input[type="text"] { flex: 2; background: #333344; color: white; border: 1px solid #44445c; }
-        input[type="text"]::placeholder { color: #888; }
-        select { background: #333344; color: white; border: 1px solid #44445c; cursor: pointer; }
-        button { background: #2ecc71; color: white; cursor: pointer; transition: background 0.2s; }
-        button:hover { background: #27ae60; }
-        ul { list-style: none; padding: 0; margin: 0; }
-        li { background: #2e2e40; display: flex; justify-content: space-between; align-items: center; padding: 14px; margin-bottom: 10px; border-radius: 8px; border-left: 5px solid #e67e22; }
-        li.done { opacity: 0.4; text-decoration: line-through; border-left-color: #7f8c8d; }
-        .quest-info { display: flex; flex-direction: column; gap: 4px; }
-        .reward-tag { background: #e67e22; color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px; width: fit-content; font-weight: bold; }
-        .action-btns { display: flex; gap: 8px; }
-        .btn-complete { background: #3498db; }
-        .btn-complete:hover { background: #2980b9; }
-        .btn-delete { background: #e74c3c; }
-        .btn-delete:hover { background: #c0392b; }
-        .shop-grid { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 15px; }
-        .shop-item { background: #2e2e40; padding: 20px; border-radius: 10px; flex: 1; min-width: 220px; text-align: center; border: 1px solid #f1c40f; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
-        .buy-btn { background: #f1c40f; color: #1a1a24; width: 100%; margin-top: 12px; }
-        .buy-btn:hover { background: #d4ac0d; }
+        [data-theme="light"] {
+            --border: #d3d3dc;
+            --panel: #ffffff;
+            --panel2: #eef0f5;
+            --bg: #f2f3f7;
+            --text: #1c1c24;
+            --muted: #666;
+            --input-bg: #ffffff;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            transition: background 0.3s, color 0.3s;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+        }
+        .card {
+            background-color: var(--panel);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+        h2, h3 { margin-top: 0; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+        .stat-item { margin: 12px 0; font-size: 1.1em; display: flex; justify-content: space-between; }
+        .progress-bar {
+            background-color: #444;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 14px;
+            margin-top: 5px;
+        }
+        .progress-fill {
+            background: linear-gradient(90deg, #00b4d8, #0077b6);
+            height: 100%;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+        .hp-bar .progress-fill {
+            background: linear-gradient(90deg, #e63946, #d90429);
+        }
+        .form-group { margin-bottom: 12px; }
+        .form-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 0.9em; }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background-color: var(--input-bg);
+            color: var(--text);
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #fb8500;
+            color: #1e1e24;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: var(--accent); }
+        .filter-buttons { display: flex; gap: 8px; margin-bottom: 15px; }
+        .filter-btn { background-color: var(--panel2); color: var(--muted); padding: 6px 12px; font-size: 0.9em; width: auto; }
+        .filter-btn.active { background-color: #00b4d8; color: #1e1e24; }
+        .quest-list, .shop-list { list-style: none; padding: 0; margin: 0; }
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--panel2);
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 5px solid #fb8500;
+        }
+        .item-row.daily-row { border-left-color: #00b4d8; }
+        .item-row.done { border-left-color: #4b3; opacity: 0.6; }
+        .item-actions { display: flex; gap: 8px; }
+        .btn-sm { width: auto; padding: 5px 10px; font-size: 0.9em; }
+        .btn-success { background-color: #4b3; color: white; }
+        .btn-danger { background-color: #d90429; color: white; }
+        .toggle-admin { background-color: var(--panel2); color: var(--muted); margin-top: 10px; font-size: 0.85em; padding: 5px; cursor: pointer; }
+        .admin-panel { display: none; margin-top: 15px; border-top: 1px dashed var(--border); padding-top: 15px; }
+        .streak-badge {
+            display: inline-block;
+            background-color: #fb8500;
+            color: #1e1e24;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.78em;
+            font-weight: bold;
+        }
+        .hp-value.in-danger { color: #d90429; font-weight: bold; }
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: auto;
+            padding: 8px 14px;
+            z-index: 10;
+            background-color: var(--panel2);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        .user-bar {
+            position: fixed;
+            top: 20px;
+            right: 150px;
+            width: auto;
+            padding: 8px 14px;
+            z-index: 10;
+            background-color: var(--panel2);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+        .user-bar button { width: auto; padding: 4px 10px; margin-left: 8px; font-size: 0.85em; }
+
+        /* ====== ЭКРАН ВХОДА ====== */
+        #auth-screen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .auth-card {
+            max-width: 360px;
+            width: 100%;
+        }
+        .auth-card h2 { text-align: center; }
+        .auth-tabs { display: flex; gap: 8px; margin-bottom: 15px; }
+        .auth-tabs button { background-color: var(--panel2); color: var(--muted); }
+        .auth-tabs button.active { background-color: #00b4d8; color: #1e1e24; }
+        .auth-form { display: none; }
+        .auth-form.active { display: block; }
+        .auth-error { color: #d90429; font-size: 0.9em; min-height: 18px; margin: 8px 0; text-align: center; }
+
+        /* ====== КАЛЕНДАРЬ АКТИВНОСТИ (GitHub-style) ====== */
+        .activity-card { margin-top: 10px; }
+        .activity-grid {
+            display: grid;
+            grid-auto-flow: column;
+            grid-template-rows: repeat(7, 14px);
+            gap: 4px;
+            justify-content: start;
+        }
+        .activity-day {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            background-color: var(--panel2);
+        }
+        .activity-day.lv1 { background-color: #9be9a8; }
+        .activity-day.lv2 { background-color: #40c463; }
+        .activity-day.lv3 { background-color: #30a14e; }
+        .activity-day.lv4 { background-color: #215e39; }
+        .activity-legend { display: flex; align-items: center; gap: 6px; font-size: 0.78em; color: var(--muted); margin-top: 10px; }
+        .activity-legend .activity-day { width: 12px; height: 12px; }
+
+        /* ====== ТОСТ-УВЕДОМЛЕНИЯ О СЛУЧАЙНЫХ СОБЫТИЯХ И LEVEL UP ====== */
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--panel2);
+            border: 1px solid var(--accent);
+            color: var(--text);
+            padding: 12px 20px;
+            border-radius: 8px;
+            z-index: 50;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+            opacity: 0;
+            transition: opacity 0.3s;
+            max-width: 90%;
+            text-align: center;
+        }
+        #toast.show { opacity: 1; }
+
+        /* ====== PWA / МОБИЛЬНАЯ АДАПТАЦИЯ ====== */
+        /* Безопасная зона для устройств с вырезом/нотчем */
+        body {
+            /* учёт верхнего выреза на iPhone с viewport-fit=cover */
+            padding-top: max(20px, env(safe-area-inset-top));
+            padding-bottom: max(20px, env(safe-area-inset-bottom));
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Кнопки и элементы управления удобнее трогать пальцем */
+        button, input, select {
+            min-height: 44px;
+            touch-action: manipulation;
+        }
+        .btn-sm { min-height: 40px; }
+        .item-actions { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+        /* Фиксированные элементы не попадали под вырез */
+        .theme-toggle, .user-bar {
+            top: max(20px, env(safe-area-inset-top));
+        }
+        [data-theme="dark"] { --header-backdrop: rgba(30,30,36,0.85); }
+        [data-theme="light"] { --header-backdrop: rgba(242,243,247,0.85); }
+
+        @media (max-width: 900px) {
+            /* Одна колонка и компактнее отступы на узких экранах */
+            body { padding: max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom)); }
+            .card { padding: 16px; }
+            .item-row { padding: 12px; }
+            /* Заголовок не мешает плавающим кнопкам */
+            h1 { padding-right: 110px; font-size: 1.3em; }
+            .container { gap: 12px; }
+        }
     </style>
 </head>
-<body>
+<body data-theme="dark">
 
-<h1>⚔️ RPG Quest Journal & Hero Dashboard</h1>
-
-<div class="game-layout">
-    <div class="panel hero-panel">
-        <h3>🛡️ Карточка Персонажа</h3>
-        <h2 id="heroLevel" style="color: #2ecc71; margin: 10px 0; font-size: 28px;">Уровень 1</h2>
-        <div class="stat-row"><span>🪙 Золото в кошельке:</span><span id="heroGold" class="gold-count">0 G</span></div>
-        <div class="xp-container"><div id="xpBar" class="xp-bar"></div></div>
-        <div id="xpText" class="xp-text">0 / 100 XP</div>
-        
-        <h4 style="margin-top: 25px; text-align: left; color: #bbb; border-bottom: 1px solid #3a3a4f; padding-bottom: 4px;">Характеристики:</h4>
-        <div class="stat-row"><span>🧠 Интеллект (Учеба):</span><span id="statInt" style="color: #3498db; font-weight: bold;">10</span></div>
-        <div class="stat-row"><span>💪 Сила (Спорт/Дом):</span><span id="statStr" style="color: #e74c3c; font-weight: bold;">10</span></div>
-        <div class="stat-row"><span>⚡ Ловкость (Работа):</span><span id="statAgility" style="color: #2ecc71; font-weight: bold;">10</span></div>
-    </div>
-
-    <div class="panel tasks-panel">
-        <h3>📜 Журнал Доступных Квестов</h3>
-        <div class="input-group">
-            <input type="text" id="taskTitle" placeholder="Какое великое дело предстоит совершить?">
-            <select id="taskCategory"></select>
-            <button onclick="addTask()">Взять Квест</button>
+    <!-- ЭКРАН АВТОРИЗАЦИИ -->
+    <div id="auth-screen">
+        <div class="card auth-card">
+            <h2>⚔ RPG Quest Journal</h2>
+            <div class="auth-tabs">
+                <button id="tab-login" class="active" onclick="switchAuthTab('login')">Вход</button>
+                <button id="tab-register" onclick="switchAuthTab('register')">Регистрация</button>
+            </div>
+            <form id="login-form" class="auth-form active">
+                <div class="form-group"><label>Логин</label><input type="text" id="login-username" autocomplete="username"></div>
+                <div class="form-group"><label>Пароль</label><input type="password" id="login-password" autocomplete="current-password"></div>
+                <div class="auth-error"></div>
+                <button type="submit">Войти в игру</button>
+            </form>
+            <form id="register-form" class="auth-form">
+                <div class="form-group"><label>Логин (мин. 3 символа)</label><input type="text" id="reg-username" autocomplete="username"></div>
+                <div class="form-group"><label>Пароль (мин. 4 символа)</label><input type="password" id="reg-password" autocomplete="new-password"></div>
+                <div class="auth-error"></div>
+                <button type="submit">Создать героя</button>
+            </form>
         </div>
-        <ul id="taskList"></ul>
     </div>
-</div>
 
-<div class="panel shop-panel">
-    <h3>🏪 Золотая Лавка Наград (Трать золото на отдых!)</h3>
-    <div id="shopGrid" class="shop-grid"></div>
-</div>
+    <!-- ОСНОВНОЙ ИНТЕРФЕЙС (скрыт до входа) -->
+    <div id="app" style="display: none;">
+        <button class="theme-toggle" onclick="toggleTheme()">🌓 Тема</button>
+        <div class="user-bar"><span>👤 <b id="user-name"></b></span><button onclick="logout()">Выйти</button></div>
 
-<script>
-    async function loadHero() {
-        const res = await fetch('/hero');
-        const hero = await res.json();
-        document.getElementById('heroLevel').textContent = 'Уровень ' + hero.level;
-        document.getElementById('heroGold').textContent = hero.gold + ' G';
-        document.getElementById('statInt').textContent = hero.intellect;
-        document.getElementById('statStr').textContent = hero.strength;
-        document.getElementById('statAgility').textContent = hero.agility;
-        
-        const pct = (hero.xp / hero.xp_to_next_level) * 100;
-        document.getElementById('xpBar').style.width = pct + '%';
-        document.getElementById('xpText').textContent = hero.xp + ' / ' + hero.xp_to_next_level + ' XP';
-    }
+        <h1 style="text-align: center; color: var(--accent); margin-bottom: 30px;">⚔ RPG Quest Journal & Hero Dashboard</h1>
 
-    async function loadCategories() {
-        const res = await fetch('/categories');
-        const categories = await res.json();
-        const select = document.getElementById('taskCategory');
-        select.innerHTML = '';
-        categories.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c.id;
-            opt.textContent = c.name;
-            select.appendChild(opt);
+        <div class="container">
+            <!-- ЛЕВАЯ КОЛОНКА -->
+            <div>
+                <div class="card">
+                    <h3>🛡 Карточка Персонажа</h3>
+                    <div class="stat-item"><span>🌟 Уровень:</span> <b id="hero-level">1</b></div>
+                    <div class="stat-item"><span>🪙 Золото:</span> <b id="hero-gold">0 G</b></div>
+                    <div class="stat-item"><span>❤️ Здоровье:</span> <b id="hero-hp" class="hp-value">100 / 100</b></div>
+                    <div class="progress-bar hp-bar"><div id="hero-hp-bar" class="progress-fill"></div></div>
+                    <div style="margin-top: 15px;">
+                        <div class="stat-item"><span style="font-size: 0.9em; color: var(--muted);">Опыт (XP):</span> <span id="hero-xp-text" style="font-size: 0.9em; color: var(--muted);">0 / 100</span></div>
+                        <div class="progress-bar"><div id="hero-xp-bar" class="progress-fill"></div></div>
+                    </div>
+                    <h4>Характеристики:</h4>
+                    <div class="stat-item"><span>🧠 Интеллект (Учеба):</span> <b id="hero-intellect">10</b></div>
+                    <div class="stat-item"><span>💪 Сила (Спорт/Дом):</span> <b id="hero-strength">10</b></div>
+                    <div class="stat-item"><span>⚡ Ловкость (Работа):</span> <b id="hero-agility">10</b></div>
+                </div>
+
+                <div class="card">
+                    <h3>🏪 Золотая Лавка Наград</h3>
+                    <ul id="shop-items" class="shop-list"></ul>
+                    <button class="toggle-admin" onclick="toggleElement('admin-shop')">⚙ Добавить товар в лавку</button>
+                    <div id="admin-shop" class="admin-panel">
+                        <form id="shop-form">
+                            <div class="form-group"><input type="text" id="shop-name" placeholder="Название награды" required></div>
+                            <div class="form-group"><input type="number" id="shop-cost" placeholder="Цена золота" min="1" required></div>
+                            <div class="form-group">
+                                <select id="shop-type">
+                                    <option value="reward">🎁 Награда</option>
+                                    <option value="potion">🧪 Зелье лечения (HP)</option>
+                                </select>
+                            </div>
+                            <button type="submit">Добавить в магазин</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ПРАВАЯ КОЛОНКА -->
+            <div>
+                <div class="card">
+                    <h3>📜 Взять новое задание</h3>
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button id="mode-task-btn" style="background-color: #fb8500; color: #1e1e24;" onclick="switchCreationMode('task')">Обычный квест</button>
+                        <button id="mode-daily-btn" style="background-color: var(--panel2); color: var(--text);" onclick="switchCreationMode('daily')">Ежедневная привычка</button>
+                    </div>
+
+                    <form id="quest-form">
+                        <div class="form-group">
+                            <label for="quest-title">Что нужно сделать (Один раз)?</label>
+                            <input type="text" id="quest-title" placeholder="Например: Прочесть 10 страниц книги" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="quest-category">Категория квеста</label>
+                            <select class="category-select" id="quest-category" required></select>
+                        </div>
+                        <button type="submit">Занести в журнал квестов</button>
+                    </form>
+
+                    <form id="daily-form" style="display: none;">
+                        <div class="form-group">
+                            <label for="daily-title">Какую привычку внедряем (Повторяется каждый день)?</label>
+                            <input type="text" id="daily-title" placeholder="Например: Сделать утреннюю зарядку" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="daily-category">Категория привычки</label>
+                            <select class="category-select" id="daily-category" required></select>
+                        </div>
+                        <button type="submit" style="background-color: #00b4d8; color: #1e1e24;">Закрепить в расписании</button>
+                    </form>
+
+                    <button class="toggle-admin" onclick="toggleElement('admin-cat')">⚙ Создать новую категорию квестов</button>
+                    <div id="admin-cat" class="admin-panel">
+                        <form id="category-form">
+                            <div class="form-group"><input type="text" id="cat-name" placeholder="Название (например: Языки 🗣)" required></div>
+                            <div class="form-group">
+                                <select id="cat-stat" required>
+                                    <option value="intellect">🧠 Качает Интеллект</option>
+                                    <option value="strength">💪 Качает Силу</option>
+                                    <option value="agility">⚡ Качает Ловкость</option>
+                                </select>
+                            </div>
+                            <div class="form-group form-inline">
+                                <input type="number" id="cat-xp" placeholder="+XP опыт" min="1" required>
+                                <input type="number" id="cat-gold" placeholder="+G золото" min="1" required>
+                            </div>
+                            <button type="submit">Создать категорию</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>🔄 Ежедневные привычки (Дейлики)</h3>
+                    <p style="font-size: 0.85em; color: var(--muted); margin-top: 0;">🔥 Выполняйте несколько дней подряд: множитель наград растёт до x1.5. Пропустили день — серия и награда сбрасываются.</p>
+                    <ul id="daily-tasks" class="quest-list"></ul>
+                </div>
+
+                <div class="card">
+                    <h3>📝 Журнал обычных квестов</h3>
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" id="filter-all" onclick="setFilter('all')">Все</button>
+                        <button class="filter-btn" id="filter-active" onclick="setFilter('active')">Активные</button>
+                        <button class="filter-btn" id="filter-completed" onclick="setFilter('completed')">Выполненные</button>
+                    </div>
+                    <ul id="quest-tasks" class="quest-list"></ul>
+                </div>
+
+                <div class="card activity-card">
+                    <h3>🗓 Календарь активности (30 дней)</h3>
+                    <div id="activity-grid" class="activity-grid"></div>
+                    <div class="activity-legend">
+                        <span>Меньше</span>
+                        <span class="activity-day lv0"></span><span class="activity-day lv1"></span><span class="activity-day lv2"></span><span class="activity-day lv3"></span><span class="activity-day lv4"></span>
+                        <span>Больше</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <!-- ФУТЕР -->
+    <footer style="text-align:center; margin-top:30px; padding:15px 0; border-top:1px solid var(--border); color:var(--muted); font-size:0.85em;">
+        © 2026 RPG Quest Journal. Все права защищены.
+    </footer>
+
+    <script>
+        const state = { currentFilter: 'all', theme: 'dark' };
+        let SFX = {};
+
+        // ====== ЗВУКИ (ретро 8-bit) ======
+        function initSound() {
+            SFX = {
+                quest: new Audio('/static/audio/quest_done.wav'),
+                buy: new Audio('/static/audio/buy.wav'),
+                level: new Audio('/static/audio/level_up.wav')
+            };
+            ['quest','buy','level'].forEach(k => { SFX[k].volume = 0.7; });
+        }
+        function playSound(name) {
+            if (SFX[name]) { SFX[name].currentTime = 0; SFX[name].play().catch(()=>{}); }
+        }
+
+        // ====== ТОСТ ======
+        let toastTimer;
+        function showToast(msg, ms = 2600) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+        }
+
+        // ====== ТЕМА ======
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('rpg-theme', theme);
+            state.theme = theme;
+        }
+        function toggleTheme() {
+            applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+        }
+
+        // ====== ВХОД / РЕГИСТРАЦИЯ ======
+        function switchAuthTab(tab) {
+            document.getElementById('login-form').classList.toggle('active', tab === 'login');
+            document.getElementById('register-form').classList.toggle('active', tab === 'register');
+            document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+            document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+        }
+        function authError(containerId, msg) {
+            document.querySelector(`#${containerId} .auth-error`).innerText = msg || '';
+        }
+        async function doAuth(endpoint, username, password, containerId) {
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+                if (!res.ok) { authError(containerId, data.detail || 'Ошибка'); return false; }
+                authError(containerId, '');
+                showToast(data.status);
+                await enterApp();
+                return true;
+            } catch (e) { authError(containerId, 'Нет связи с сервером'); return false; }
+        }
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await doAuth('/auth/login', document.getElementById('login-username').value.trim(), document.getElementById('login-password').value, 'login-form');
         });
-    }
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await doAuth('/auth/register', document.getElementById('reg-username').value.trim(), document.getElementById('reg-password').value, 'register-form');
+        });
 
-    async function loadTasks() {
-        const res = await fetch('/tasks');
-        const tasks = await res.json();
-        const list = document.getElementById('taskList');
-        list.innerHTML = '';
-        
-        tasks.forEach(t => {
-            const li = document.createElement('li');
-            if (t.done) li.className = 'done';
-            
-            const infoDiv = document.createElement('div');
-            infoDiv.className = 'quest-info';
-            infoDiv.innerHTML = `<span style="font-size: 16px; font-weight: 500;">${t.title}</span><span class="reward-tag">${t.category_name} | ${t.reward_info}</span>`;
-            
-            const btnsDiv = document.createElement('div');
-            btnsDiv.className = 'action-btns';
-            
-            if (!t.done) {
-                const compBtn = document.createElement('button');
-                compBtn.className = 'btn-complete';
-                compBtn.textContent = 'Сдать Квест';
-                compBtn.onclick = function() { completeTask(t.id); };
-                btnsDiv.appendChild(compBtn);
+        async function enterApp() {
+            const res = await fetch('/auth/me');
+            const me = await res.json();
+            if (!me.username) return;
+            document.getElementById('user-name').innerText = me.username;
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+            loadCategories().then(() => loadAll());
+        }
+
+        async function logout() {
+            await fetch('/auth/logout', { method: 'POST' });
+            location.reload();
+        }
+
+        function toggleElement(id) {
+            const el = document.getElementById(id);
+            el.style.display = el.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function switchCreationMode(mode) {
+            const taskForm = document.getElementById('quest-form');
+            const dailyForm = document.getElementById('daily-form');
+            const taskBtn = document.getElementById('mode-task-btn');
+            const dailyBtn = document.getElementById('mode-daily-btn');
+            if (mode === 'task') {
+                taskForm.style.display = 'block'; dailyForm.style.display = 'none';
+                taskBtn.style.background = '#fb8500'; taskBtn.style.color = '#1e1e24';
+                dailyBtn.style.background = 'var(--panel2)'; dailyBtn.style.color = 'var(--text)';
             } else {
-                const spanDone = document.createElement('span');
-                spanDone.textContent = '💎 Выполнено';
-                btnsDiv.appendChild(spanDone);
+                taskForm.style.display = 'none'; dailyForm.style.display = 'block';
+                taskBtn.style.background = 'var(--panel2)'; taskBtn.style.color = 'var(--text)';
+                dailyBtn.style.background = '#00b4d8'; dailyBtn.style.color = '#1e1e24';
             }
-            
-            const delBtn = document.createElement('button');
-            delBtn.className = 'btn-delete';
-            delBtn.textContent = '❌';
-            delBtn.onclick = function() { deleteTask(t.id); };
-            btnsDiv.appendChild(delBtn);
-            
-            li.appendChild(infoDiv);
-            li.appendChild(btnsDiv);
-            list.appendChild(li);
-        });
-    }
-
-    async function loadShop() {
-        const res = await fetch('/shop');
-        const items = await res.json();
-        const grid = document.getElementById('shopGrid');
-        grid.innerHTML = '';
-        items.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'shop-item';
-            
-            const titleDiv = document.createElement('div');
-            titleDiv.style.fontSize = '16px';
-            titleDiv.style.fontWeight = 'bold';
-            titleDiv.style.marginBottom = '5px';
-            titleDiv.textContent = item.name;
-            
-            const costDiv = document.createElement('div');
-            costDiv.style.color = '#f1c40f';
-            costDiv.style.fontSize = '15px';
-            costDiv.style.fontWeight = 'bold';
-            costDiv.textContent = 'Стоимость: ' + item.cost + ' G';
-            
-            const buyBtn = document.createElement('button');
-            buyBtn.className = 'buy-btn';
-            buyBtn.textContent = 'Забрать Награду';
-            buyBtn.onclick = function() { buyItem(item.id); };
-            
-            div.appendChild(titleDiv);
-            div.appendChild(costDiv);
-            div.appendChild(buyBtn);
-            grid.appendChild(div);
-        });
-    }
-
-    async function addTask() {
-        const titleInput = document.getElementById('taskTitle');
-        const catSelect = document.getElementById('taskCategory');
-        if (!titleInput.value.trim() || !catSelect.value) return;
-
-        await fetch('/tasks', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                title: titleInput.value, 
-                category_id: parseInt(catSelect.value) 
-            })
-        });
-        titleInput.value = '';
-        await loadTasks();
-    }
-
-    async function completeTask(id) {
-        const res = await fetch('/tasks/' + id, { method: 'PATCH' });
-        const data = await res.json();
-        if (data.level_up) {
-            alert("🎉 СЛАВНАЯ ПОБЕДА! Вы повысили свой УРОВЕНЬ! Ваши силы растут!");
         }
-        await loadHero();
-        await loadTasks();
-    }
 
-    async function deleteTask(id) {
-        await fetch('/tasks/' + id, { method: 'DELETE' });
-        await loadTasks();
-    }
-
-    async function buyItem(id) {
-        const res = await fetch('/shop/buy', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ item_id: id })
-        });
-        const data = await res.json();
-        if (res.ok) {
-            alert(data.message);
-        } else {
-            alert("⚠️ Игровой магазин: " + data.detail);
+        function setFilter(filterType) {
+            state.currentFilter = filterType;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`filter-${filterType}`).classList.add('active');
+            loadTasks();
         }
-        await loadHero();
-    }
 
-    async function init() {
-        await loadHero();
-        await loadCategories(); 
-        await loadTasks();      
-        await loadShop();
-    }
-    
-    init();
-</script>
+        async function loadHero() {
+            try {
+                const res = await fetch('/hero');
+                if (res.status === 401) return logout();
+                const data = await res.json();
+                document.getElementById('hero-level').innerText = data.level;
+                document.getElementById('hero-gold').innerText = `${data.gold} G`;
+                document.getElementById('hero-hp').innerText = `${data.hp} / ${data.max_hp}`;
+                document.getElementById('hero-xp-text').innerText = `${data.xp} / ${data.xp_to_next_level}`;
+                document.getElementById('hero-intellect').innerText = data.intellect;
+                document.getElementById('hero-strength').innerText = data.strength;
+                document.getElementById('hero-agility').innerText = data.agility;
+                const xpPct = Math.min(100, (data.xp / data.xp_to_next_level) * 100);
+                document.getElementById('hero-xp-bar').style.width = `${xpPct}%`;
+                const hpPct = (data.hp / data.max_hp) * 100;
+                document.getElementById('hero-hp-bar').style.width = `${hpPct}%`;
+                const hpEl = document.getElementById('hero-hp');
+                if (data.hp <= 25) hpEl.classList.add('in-danger'); else hpEl.classList.remove('in-danger');
+            } catch (e) { console.error("Ошибка загрузки героя:", e); }
+        }
+
+        async function loadCategories() {
+            try {
+                const res = await fetch('/categories');
+                const categories = await res.json();
+                document.querySelectorAll('.category-select').forEach(select => {
+                    select.innerHTML = '';
+                    categories.forEach(cat => {
+                        const opt = document.createElement('option');
+                        opt.value = cat.id; opt.innerText = cat.name;
+                        select.appendChild(opt);
+                    });
+                });
+            } catch (e) { console.error("Ошибка загрузки категорий:", e); }
+        }
+
+        function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+        async function loadTasks() {
+            try {
+                const res = await fetch('/tasks');
+                if (res.status === 401) return logout();
+                let tasks = await res.json();
+                const list = document.getElementById('quest-tasks');
+                list.innerHTML = '';
+                if (state.currentFilter === 'active') tasks = tasks.filter(t => !t.done);
+                if (state.currentFilter === 'completed') tasks = tasks.filter(t => t.done);
+                if (tasks.length === 0) {
+                    list.innerHTML = '<li style="color: var(--muted); text-align: center; padding: 20px;">Нет обычных квестов в этой категории.</li>';
+                    return;
+                }
+                tasks.forEach(task => {
+                    const li = document.createElement('li');
+                    li.className = `item-row ${task.done ? 'done' : ''}`;
+                    li.innerHTML = `
+                        <div>
+                            <span style="font-size: 0.85em; color: #fb8500; display:block;">${esc(task.category_name)}</span>
+                            <strong style="${task.done ? 'text-decoration: line-through;' : ''}">${esc(task.title)}</strong>
+                            <div style="font-size: 0.8em; color: var(--muted); margin-top: 4px;">Награда: ${esc(task.reward_info)}</div>
+                        </div>
+                        <div class="item-actions">
+                            ${!task.done ? `<button class="btn-sm btn-success" onclick="completeTask(${task.id})">Сдать</button>` : ''}
+                            <button class="btn-sm btn-danger" onclick="deleteTask(${task.id})">Удалить</button>
+                        </div>`;
+                    list.appendChild(li);
+                });
+            } catch (e) { console.error("Ошибка загрузки квестов:", e); }
+        }
+
+        async function loadDailyTasks() {
+            try {
+                const res = await fetch('/dailies');
+                if (res.status === 401) return logout();
+                const dailies = await res.json();
+                const list = document.getElementById('daily-tasks');
+                list.innerHTML = '';
+                if (dailies.length === 0) {
+                    list.innerHTML = '<li style="color: var(--muted); text-align: center; padding: 15px;">Список ежедневных привычек пуст.</li>';
+                    return;
+                }
+                dailies.forEach(task => {
+                    const li = document.createElement('li');
+                    li.className = `item-row daily-row ${task.done ? 'done' : ''}`;
+                    const streakBadge = task.streak_count > 0 ? `<span class="streak-badge">🔥 x${Math.min(task.streak_count, 3) >= 2 ? '1.' + (Math.min(task.streak_count,3) === 2 ? '2' : '5') : '1.0'} · серия ${task.streak_count}</span>` : '';
+                    li.innerHTML = `
+                        <div>
+                            <span style="font-size: 0.85em; color: #00b4d8; display:block;">🔄 [${esc(task.category_name)}] ${streakBadge}</span>
+                            <strong style="${task.done ? 'text-decoration: line-through;' : ''}">${esc(task.title)}</strong>
+                            <div style="font-size: 0.8em; color: var(--muted); margin-top: 4px;">Награда: ${esc(task.reward_info)}</div>
+                        </div>
+                        <div class="item-actions">
+                            ${!task.done ? `<button class="btn-sm btn-success" style="background-color: #00b4d8;" onclick="completeDailyTask(${task.id})">Выполнить</button>` : '<span style="color: #4b3; font-size: 0.9em; padding: 5px;">🌟 Ок</span>'}
+                            <button class="btn-sm btn-danger" onclick="deleteDailyTask(${task.id})">✖</button>
+                        </div>`;
+                    list.appendChild(li);
+                });
+            } catch (e) { console.error("Ошибка загрузки дейликов:", e); }
+        }
+
+        async function loadShop() {
+            try {
+                const res = await fetch('/shop');
+                if (res.status === 401) return logout();
+                const items = await res.json();
+                const list = document.getElementById('shop-items');
+                list.innerHTML = '';
+                if (items.length === 0) {
+                    list.innerHTML = '<li style="color: var(--muted); text-align: center; padding: 15px;">Лавка пуста.</li>';
+                    return;
+                }
+                items.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'item-row';
+                    const label = item.rtype === 'potion' ? '🧪' : '💰';
+                    li.innerHTML = `
+                        <div>
+                            <div>${esc(item.name)}</div>
+                            <span style="color: var(--accent); font-size: 0.9em;">${label} Цена: ${item.cost} G${item.rtype === 'potion' ? ' (лечит HP)' : ''}</span>
+                        </div>
+                        <button class="btn-sm" onclick="buyItem(${item.id})">Купить</button>`;
+                    list.appendChild(li);
+                });
+            } catch (e) { console.error("Ошибка лавки:", e); }
+        }
+
+        async function loadActivity() {
+            try {
+                const res = await fetch('/activity');
+                if (res.status === 401) return logout();
+                const data = await res.json();
+                renderActivity(data);
+            } catch (e) { console.error("Ошибка календаря:", e); }
+        }
+
+        function renderActivity(data) {
+            const grid = document.getElementById('activity-grid');
+            grid.innerHTML = '';
+            const days = [];
+            const start = new Date(data.start + 'T00:00:00');
+            const end = new Date(data.end + 'T00:00:00');
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                days.push(new Date(d));
+            }
+            // Выравниваем по неделе так, чтобы последний день попал в правый нижний угол
+            const firstDow = start.getDay() === 0 ? 7 : start.getDay(); // понедельник = 1
+            for (let i = 1; i < firstDow; i++) grid.appendChild(blankDay());
+            days.forEach(d => {
+                const iso = d.toISOString().slice(0, 10);
+                const count = (data.counts[iso] || 0);
+                grid.appendChild(dayCell(count));
+            });
+        }
+        function blankDay() { const el = document.createElement('div'); el.className = 'activity-day'; return el; }
+        function dayCell(count) {
+            const el = document.createElement('div');
+            let lv = 0;
+            if (count >= 1) lv = 1;
+            if (count >= 2) lv = 2;
+            if (count >= 4) lv = 3;
+            if (count >= 7) lv = 4;
+            el.className = `activity-day lv${lv}`;
+            el.title = `Квестов выполнено: ${count}`;
+            return el;
+        }
+
+        // ====== ОБРАБОТКА РЕЗУЛЬТАТА СДАЧИ (события, уровень) ======
+        function handleCompleteResult(data, isDaily) {
+            if (data.encounter && data.encounter.triggered) {
+                showToast(data.encounter.message, 3400);
+            }
+            if (data.level_up) {
+                playSound('level');
+                setTimeout(() => showToast('🎉 LEVEL UP! Вы стали сильнее!', 2600), isDaily ? 300 : 0);
+            } else {
+                playSound('quest');
+            }
+            loadAll();
+        }
+
+        // ====== ФОРМА КВЕСТА ======
+        document.getElementById('quest-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('quest-title').value;
+            const category_id = parseInt(document.getElementById('quest-category').value);
+            try {
+                const res = await fetch('/tasks', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, category_id })
+                });
+                if (res.status === 201) {
+                    document.getElementById('quest-title').value = '';
+                    loadTasks();
+                } else { const err = await res.json(); showToast(err.detail || 'Ошибка'); }
+            } catch (e) { console.error(e); }
+        });
+
+        // ====== ФОРМА ДЕЙЛИКА ======
+        document.getElementById('daily-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('daily-title').value;
+            const category_id = parseInt(document.getElementById('daily-category').value);
+            try {
+                const res = await fetch('/dailies', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, category_id })
+                });
+                if (res.status === 201) {
+                    document.getElementById('daily-title').value = '';
+                    loadDailyTasks();
+                } else { const err = await res.json(); showToast(err.detail || 'Ошибка'); }
+            } catch (e) { console.error(e); }
+        });
+
+        // ====== КАТЕГОРИЯ ======
+        document.getElementById('category-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('cat-name').value;
+            const stat_reward = document.getElementById('cat-stat').value;
+            const xp_reward = parseInt(document.getElementById('cat-xp').value);
+            const gold_reward = parseInt(document.getElementById('cat-gold').value);
+            try {
+                const res = await fetch('/categories', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, stat_reward, xp_reward, gold_reward })
+                });
+                if (res.ok) {
+                    document.getElementById('category-form').reset();
+                    toggleElement('admin-cat');
+                    await loadCategories();
+                    showToast('Новая ветка квестов выкована!');
+                } else { const err = await res.json(); showToast(err.detail || 'Не удалось создать'); }
+            } catch (e) { console.error(e); }
+        });
+
+        // ====== ТОВАР В ЛАВКЕ ======
+        document.getElementById('shop-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('shop-name').value;
+            const cost = parseInt(document.getElementById('shop-cost').value);
+            const rtype = document.getElementById('shop-type').value;
+            try {
+                const res = await fetch('/shop', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, cost, rtype })
+                });
+                if (res.ok) {
+                    document.getElementById('shop-form').reset();
+                    toggleElement('admin-shop');
+                    loadShop();
+                    showToast('Новый предмет выставлен на витрину!');
+                }
+            } catch (e) { console.error(e); }
+        });
+
+        // ====== ДЕЙСТВИЯ ======
+        async function completeTask(id) {
+            try {
+                const res = await fetch(`/tasks/${id}`, { method: 'PATCH' });
+                if (res.status === 401) return logout();
+                const data = await res.json();
+                handleCompleteResult(data, false);
+            } catch (e) { console.error(e); }
+        }
+
+        async function deleteTask(id) {
+            if (confirm("Вычеркнуть этот квест из журнала? (Герой потеряет 5 HP)")) {
+                try { await fetch(`/tasks/${id}`, { method: 'DELETE' }); loadAll(); }
+                catch (e) { console.error(e); }
+            }
+        }
+
+        async function completeDailyTask(id) {
+            try {
+                const res = await fetch(`/dailies/${id}`, { method: 'PATCH' });
+                if (res.status === 401) return logout();
+                const data = await res.json();
+                if (data.encounter && data.encounter.triggered) showToast(data.encounter.message, 3400);
+                if (data.streak_count > 0 && data.multiplier > 1) {
+                    showToast(`🔥 Серия ${data.streak_count}! Множитель x${data.multiplier}.`, 2600);
+                }
+                handleCompleteResult(data, true);
+            } catch (e) { console.error(e); }
+        }
+
+        async function deleteDailyTask(id) {
+            if (confirm("Удалить эту привычку из расписания навсегда?")) {
+                try { await fetch(`/dailies/${id}`, { method: 'DELETE' }); loadDailyTasks(); }
+                catch (e) { console.error(e); }
+            }
+        }
+
+        async function buyItem(id) {
+            try {
+                const res = await fetch('/shop/buy', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ item_id: id })
+                });
+                if (res.status === 401) return logout();
+                const data = await res.json();
+                if (!res.ok) { showToast(data.detail || 'Ошибка'); return; }
+                showToast(data.message);
+                playSound('buy');
+                loadAll();
+            } catch (e) { console.error(e); }
+        }
+
+        function loadAll() {
+            loadHero(); loadTasks(); loadDailyTasks(); loadShop(); loadActivity();
+        }
+
+        // ====== ИНИЦИАЛИЗАЦИЯ ======
+        window.onload = async () => {
+            initSound();
+            applyTheme(localStorage.getItem('rpg-theme') || 'dark');
+            registerServiceWorker();
+            const res = await fetch('/auth/me');
+            const me = await res.json();
+            if (me.username) {
+                enterApp();
+            } else {
+                // уже на экране входа
+            }
+        };
+
+        // ====== PWA SERVICE WORKER (офлайн-режим) ======
+        function registerServiceWorker() {
+            if (!('serviceWorker' in navigator)) return;
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js')
+                    .then(() => console.log('[PWA] Service Worker зарегистрирован'))
+                    .catch((err) => console.warn('[PWA] SW ошибка:', err));
+            });
+        }
+    </script>
+</body>
+</html>
