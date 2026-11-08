@@ -1,193 +1,219 @@
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session, relationship
+import os
+import secrets
+import datetime
+from datetime import timedelta
 
-# 1. Инициализация базы данных SQLite (создаст файл rpg_game.db)
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
+import jwt as pyjwt
+
+from flask import Flask, jsonify, make_response, request, send_from_directory, session
+from pydantic import BaseModel, Field, ValidationError
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from werkzeug.security import check_password_hash, generate_password_hash
+
+from models import Base, CategoryDB, HeroDB, ShopItemDB, UserDB
+import game_logic
+
 DATABASE_URL = "sqlite:///./rpg_game.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
 
-# === ТАБЛИЦЫ БАЗЫ ДАННЫХ (SQLAlchemy) ===
+app = Flask(__name__, static_folder="static", static_url_path="/static")
 
-# Главный герой (его характеристики и ресурсы)
-class HeroDB(Base):
-    __tablename__ = "hero"
-    id = Column(Integer, primary_key=True, index=True)
-    level = Column(Integer, default=1)
-    xp = Column(Integer, default=0)
-    xp_to_next_level = Column(Integer, default=100)
-    gold = Column(Integer, default=0)
-    strength = Column(Integer, default=10)
-    intellect = Column(Integer, default=10)
-    agility = Column(Integer, default=10)
 
-# Игровые категории квестов
-class CategoryDB(Base):
-    __tablename__ = "categories"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, index=True)
-    stat_reward = Column(String)  # strength, intellect, agility
-    xp_reward = Column(Integer)   # Опыт за выполнение
-    gold_reward = Column(Integer) # Золото за выполнение
+# === АВТОРИЗАЦИЯ ===
 
-    tasks = relationship("TaskDB", back_populates="category", cascade="all, delete-orphan")
+class RegisterRequest(BaseModel):
+    username: str = Field(..., min_length=3, max_length=30)
+    password: str = Field(..., min_length=4, max_length=100)
 
-# Сами квесты (задачи)
-class TaskDB(Base):
-    __tablename__ = "tasks"
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True)
-    done = Column(Boolean, default=False)
-    category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
-    
-    category = relationship("CategoryDB", back_populates="tasks")
 
-# Товары в Лавке Наград
-class ShopItemDB(Base):
-    __tablename__ = "shop_items"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
-    cost = Column(Integer)
+class LoginRequest(BaseModel):
+    username: str = Field(..., min_length=1)
+    password: str = Field(..., min_length=1)
 
-# Создаем все таблицы в файле базы данных
-Base.metadata.create_all(bind=engine)
 
-# Наполняем стартовый мир игры, если база пустая
-db = SessionLocal()
-if db.query(HeroDB).count() == 0:
-    db.add(HeroDB(id=1)) # Создаем персонажа
-if db.query(CategoryDB).count() == 0:
-    db.add(CategoryDB(name="Учеба 🧠", stat_reward="intellect", xp_reward=30, gold_reward=15))
-    db.add(CategoryDB(name="Спорт и Дом 💪", stat_reward="strength", xp_reward=25, gold_reward=10))
-    db.add(CategoryDB(name="Дела и Работа ⚡", stat_reward="agility", xp_reward=35, gold_reward=20))
-if db.query(ShopItemDB).count() == 0:
-    db.add(ShopItemDB(name="Посмотреть серию сериала 🍿", cost=30))
-    db.add(ShopItemDB(name="Съесть любимую вкусняшку 🍰", cost=45))
-    db.add(ShopItemDB(name="1 час отдыха в видеоиграх 🎮", cost=60))
-db.commit()
-db.close()
+def create_app():
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="RPG Task Engine v1.0")
+    # В продакшене обязательно задайте RPG_SECRET через переменную окружения.
+    # Для локальной разработки генерируем надёжный ключ автоматически.
+    rpg_secret = os.environ.get("RPG_SECRET")
+    if rpg_secret:
+        app.config["SECRET_KEY"] = rpg_secret
+    else:
+        app.config["SECRET_KEY"] = secrets.token_hex(32)
+        app.config["SECRET_KEY_DEV"] = True
 
-# === СХЕМЫ ВАЛИДАЦИИ ДАННЫХ (Pydantic) ===
-class TaskCreate(BaseModel):
-    title: str = Field(..., min_length=1, max_length=100) # Валидация длины Pydantic
-    category_id: int
+    app.config["PROD"] = os.environ.get("RPG_ENV", "development") == "production"
 
-class BuyItemRequest(BaseModel):
-    item_id: int
+    app.db_engine = engine
+    app.session_factory = SessionLocal
 
-# Зависимость для сессий БД
-def get_db():
+    # Стартовое наполнение общего мира (категории и лавка)
+    _seed_world(SessionLocal)
+
+    # --- Blueprints ---
+    from routes_hero import bp as hero_bp
+    from routes_shop import bp as shop_bp
+    from routes_tasks import bp as tasks_bp
+
+    app.register_blueprint(hero_bp)
+    app.register_blueprint(shop_bp)
+    app.register_blueprint(tasks_bp)
+
+    # --- JWT: безопасный ключ и хелперы ---
+    jwt_secret = app.config["SECRET_KEY"]
+    jwt_ttl = timedelta(days=int(os.environ.get("RPG_JWT_TTL_DAYS", "7")))
+
+    def make_token(user_id: int) -> str:
+        return pyjwt.encode(
+            {"user_id": user_id, "exp": datetime.datetime.now(datetime.timezone.utc) + jwt_ttl},
+            jwt_secret,
+            algorithm="HS256",
+        )
+
+    def resolve_user_id():
+        """Определяет пользователя по JWT (Bearer) или cookie-сессии."""
+        auth = request.headers.get("Authorization", "")
+        if auth.startswith("Bearer "):
+            token = auth[7:]
+            try:
+                payload = pyjwt.decode(token, jwt_secret, algorithms=["HS256"])
+                return payload.get("user_id")
+            except Exception:
+                return None
+        return session.get("user_id")
+
+    # --- Middleware для сессий БД и авторизации ---
+    @app.before_request
+    def attach_db_and_user():
+        request.db = SessionLocal()
+        request.user_id = None
+        # На публичные маршруты (работают без входа) авторизация не распространяется
+        if request.endpoint in ("register", "login", "token", "read_root", "static"):
+            return None
+        user_id = resolve_user_id()
+        if user_id is None:
+            return jsonify({"detail": "Требуется вход в систему"}), 401
+        request.user_id = user_id
+        game_logic.check_and_reset_dailies(request.db)
+        return None
+
+    @app.teardown_request
+    def teardown(exception=None):
+        db = getattr(request, "db", None)
+        if db is not None:
+            db.close()
+
+    # --- Публичные маршруты ---
+    @app.route("/")
+    def read_root():
+        return send_from_directory(app.static_folder, "index.html")
+
+    @app.route("/auth/register", methods=["POST"])
+    def register():
+        try:
+            data = RegisterRequest(**request.get_json())
+        except ValidationError as e:
+            return jsonify({"detail": e.errors()}), 400
+
+        if request.db.query(UserDB).filter(UserDB.username == data.username).first():
+            return jsonify({"detail": "Это имя уже занято. Придумайте другое."}), 400
+
+        user = UserDB(
+            username=data.username,
+            password_hash=generate_password_hash(data.password),
+        )
+        request.db.add(user)
+        request.db.flush()
+        request.db.add(HeroDB(user_id=user.id))
+        request.db.commit()
+        return jsonify({"status": "Герой создан! Теперь войдите в систему."}), 201
+
+    @app.route("/auth/login", methods=["POST"])
+    def login():
+        try:
+            data = LoginRequest(**request.get_json())
+        except ValidationError as e:
+            return jsonify({"detail": e.errors()}), 400
+
+        user = request.db.query(UserDB).filter(UserDB.username == data.username).first()
+        if not user or not check_password_hash(user.password_hash, data.password):
+            return jsonify({"detail": "Неверный логин или пароль"}), 401
+
+        session["user_id"] = user.id
+        return jsonify({"status": "Добро пожаловать, герой!", "username": user.username})
+
+    @app.route("/auth/token", methods=["POST"])
+    def token():
+        """Выдаёт JWT-токен для нативных клиентов (React Native и т.п.).
+
+        Тело: {"username": ..., "password": ...}. Ответ: {access_token, token_type, username}.
+        ВАЖНО: в этом режиме сессия (cookie) не создаётся — токен следует хранить
+        на клиенте и передавать в заголовке Authorization: Bearer <token>.
+        """
+        try:
+            data = LoginRequest(**request.get_json())
+        except ValidationError as e:
+            return jsonify({"detail": e.errors()}), 400
+
+        user = request.db.query(UserDB).filter(UserDB.username == data.username).first()
+        if not user or not check_password_hash(user.password_hash, data.password):
+            return jsonify({"detail": "Неверный логин или пароль"}), 401
+
+        access_token = make_token(user.id)
+        return jsonify({
+            "access_token": access_token,
+            "token_type": "bearer",
+            "username": user.username,
+        }), 200
+
+    @app.route("/auth/me", methods=["GET"])
+    def me():
+        user_id = session.get("user_id")
+        if user_id is None:
+            return jsonify({"username": None}), 200
+        user = request.db.query(UserDB).filter(UserDB.id == user_id).first()
+        if user is None:
+            return jsonify({"username": None}), 200
+        return jsonify({"username": user.username})
+
+    @app.route("/auth/logout", methods=["POST"])
+    def logout():
+        session.clear()
+        return jsonify({"status": "Вы вышли из игры. Доброго дня!"})
+
+    return app
+
+
+def _seed_world(SessionLocal):
+    """Кладём стартовые категории и товары лавки (общие для всех героев)."""
     db = SessionLocal()
     try:
-        yield db
+        if db.query(CategoryDB).count() == 0:
+            db.add(CategoryDB(name="Учеба 🧠", stat_reward="intellect", xp_reward=30, gold_reward=15))
+            db.add(CategoryDB(name="Спорт и Дом 💪", stat_reward="strength", xp_reward=25, gold_reward=10))
+            db.add(CategoryDB(name="Дела и Работа ⚡", stat_reward="agility", xp_reward=35, gold_reward=20))
+        if db.query(ShopItemDB).count() == 0:
+            db.add(ShopItemDB(name="Посмотреть серию сериала 🍿", cost=30))
+            db.add(ShopItemDB(name="Съесть любимую вкусняшку 🍰", cost=45))
+            db.add(ShopItemDB(name="1 час отдыха в видеоиграх 🎮", cost=60))
+            db.add(ShopItemDB(name="🧪 Зелье лечения (полное HP)", cost=25, rtype="potion"))
+        db.commit()
     finally:
         db.close()
 
-# Раздача фронтенда
-@app.get("/")
-def read_root():
-    return FileResponse("static/index.html")
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# === ЭНДПОИНТЫ ИГРОВОГО ПРОЦЕССА ===
-
-# 1. Получить состояние героя
-@app.get("/hero")
-def get_hero(db: Session = Depends(get_db)):
-    return db.query(HeroDB).first()
-
-# 2. Получить список доступных категорий
-@app.get("/categories")
-def get_categories(db: Session = Depends(get_db)):
-    return db.query(CategoryDB).all()
-
-# 3. Посмотреть журнал активных квестов
-@app.get("/tasks")
-def get_tasks(db: Session = Depends(get_db)):
-    tasks = db.query(TaskDB).all()
-    return [{
-        "id": t.id, 
-        "title": t.title, 
-        "done": t.done,
-        "category_name": t.category.name,
-        "reward_info": f"+{t.category.xp_reward}XP / +{t.category.gold_reward}G"
-    } for t in tasks]
-
-# 4. Взять новый квест (Добавить задачу)
-@app.post("/tasks", status_code=201)
-def create_task(task_data: TaskCreate, db: Session = Depends(get_db)):
-    new_task = TaskDB(title=task_data.title, category_id=task_data.category_id)
-    db.add(new_task)
-    db.commit()
-    return {"status": "Квест успешно занесен в журнал"}
-
-# 5. Сдать квест (Выполнить задачу и получить награду)
-@app.patch("/tasks/{task_id}")
-def complete_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(TaskDB).filter(TaskDB.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Квест не найден")
-    if task.done:
-        return {"status": "Квест уже был выполнен ранее"}
-
-    task.done = True
-    hero = db.query(HeroDB).first()
-    category = task.category
-
-    # Выдаем награды за квест
-    hero.xp += category.xp_reward
-    hero.gold += category.gold_reward
-
-    # Качаем нужный стат
-    if category.stat_reward == "intellect": hero.intellect += 1
-    elif category.stat_reward == "strength": hero.strength += 1
-    elif category.stat_reward == "agility": hero.agility += 1
-
-    # Механика Level Up [4.3]
-    level_up = False
-    if hero.xp >= hero.xp_to_next_level:
-        hero.xp -= hero.xp_to_next_level
-        hero.level += 1
-        hero.xp_to_next_level = int(hero.xp_to_next_level * 1.4) # Увеличиваем сложность следующего уровня
-        level_up = True
-
-    db.commit()
-    return {"status": "Квест выполнен!", "level_up": level_up}
-
-# 6. Отменить квест (Удалить задачу без штрафа)
-@app.delete("/tasks/{task_id}")
-def delete_task(task_id: int, db: Session = Depends(get_db)):
-    task = db.query(TaskDB).filter(TaskDB.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Квест не найден")
-    db.delete(task)
-    db.commit()
-    return {"status": "Квест отменен"}
-
-# 7. Посмотреть товары в лавке наград
-@app.get("/shop")
-def get_shop(db: Session = Depends(get_db)):
-    return db.query(ShopItemDB).all()
-
-# 8. Купить награду в лавке за золото
-@app.post("/shop/buy")
-def buy_reward(req: BuyItemRequest, db: Session = Depends(get_db)):
-    hero = db.query(HeroDB).first()
-    item = db.query(ShopItemDB).filter(ShopItemDB.id == req.item_id).first()
-    
-    if not item:
-        raise HTTPException(status_code=404, detail="Товар не найден")
-    if hero.gold < item.cost:
-        raise HTTPException(status_code=400, detail="Недостаточно золота! Отправляйся фармить квесты!")
-
-    hero.gold -= item.cost
-    db.commit()
-    return {"message": f"Вы успешно приобрели награду: '{item.name}'!", "gold_left": hero.gold}
+if __name__ == "__main__":
+    app_ = create_app()
+    host = os.environ.get("RPG_HOST", "127.0.0.1")
+    port = int(os.environ.get("RPG_PORT", "8000"))
+    app_.run(host=host, port=port, debug=not app_.config.get("PROD"))
