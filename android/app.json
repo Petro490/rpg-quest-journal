@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "RPG Quest",
+    "slug": "rpg-quest",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#1e1e24"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rpgquest.journal"
+    },
+    "android": {
+      "package": "com.rpgquest.journal",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#1e1e24"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

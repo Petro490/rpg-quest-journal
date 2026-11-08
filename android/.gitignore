@@ -1,0 +1,29 @@
+# Node
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# Сборка
+*.apk
+*.aab
+*.ipa
+
+# Нативный проект (генерируется)
+android/
+ios/
+
+# Секреты
+.env
+.env.*
+!.env.example
+
+# Логи
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ОС
+.DS_Store
